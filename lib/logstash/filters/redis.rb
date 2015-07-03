@@ -81,7 +81,6 @@ class LogStash::Filters::Redis < LogStash::Filters::Base
       @redis ||= connect
       val = JSON.parse(@redis.get(key))
       if val != nil
-        event["tags"] << "RETRIEVED"
         val.each do |k,v|
           event[prefix + k] = v
         end
