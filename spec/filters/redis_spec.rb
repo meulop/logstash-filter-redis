@@ -20,6 +20,7 @@ describe LogStash::Filters::Redis do
     config <<-CONFIG
       filter {
         redis {
+          add_tag => "STORED"
           store_tag => "BEGIN"
           retrieve_tag => "END"
           key => "logstash-filter-redis-test"
@@ -28,6 +29,7 @@ describe LogStash::Filters::Redis do
     CONFIG
 
     sample({"message" => "Test message", "tags" => ["APACHE"]}) do
+      insist { subject["tags"].include?("STORED") } == false
       insist { @redis.get("logstash-filter-redis-test") } == nil
     end
 
@@ -37,6 +39,7 @@ describe LogStash::Filters::Redis do
     config <<-CONFIG
       filter {
         redis {
+          add_tag => "STORED"
           store_tag => "BEGIN"
 	  retrieve_tag => "END"
 	  key => "logstash-filter-redis-test"
@@ -45,8 +48,10 @@ describe LogStash::Filters::Redis do
     CONFIG
 
     sample({"message" => "Storing message", "tags" => ["BEGIN"]}) do
-      @stored = @redis.get("logstash-filter-redis-test")
+      # Did we add tag to the event?
       insist { subject["tags"].include?("STORED") } == true
+      # Did the Redis value get set correctly
+      @stored = @redis.get("logstash-filter-redis-test")
       insist { JSON.parse(@stored)["message"] } == "Storing message"
     end
   end

@@ -57,20 +57,28 @@ class LogStash::Filters::Redis < LogStash::Filters::Base
 
     # Allow dynamic key names using fields etc
     key = event.sprintf(@key)
+
+    relevant = [@store_tag, @retrieve_tag].select do |t|
+       event["tags"].include?(t)
+    end
+ 
+    @logger.debug(relevant)
+    return unless [] != relevant
  
     # Do we store data? 
     if event["tags"].include?(@store_tag)
       @logger.debug("Found store tag %{store_tag}")
       val = event.to_hash().select { |name,value| fields.include?(name) }
       @redis ||= connect
-      @redis.set(key, val.to_json)
-      @redis.expire(key, @expiry) ? event["tags"] << "STORED" : event["tags"] << "BUGGERED"
+      @redis.set(key, val.to_json) && @logger.debug("Stored key")
+      @redis.expire(key, @expiry) && @logger.debug("Set expiry key")
     end
     # Do we retrieve data from a prior event?
     # N.b. we can do both if we want! (e.g. packet sequence numbers ...)
     #
     if event["tags"].include?(@retrieve_tag)
       @logger.debug("Found retrieve tag %{retrieve_tag}")
+      @redis ||= connect
       val = JSON.parse(@redis.get(key))
       if val != nil
         event["tags"] << "RETRIEVED"
