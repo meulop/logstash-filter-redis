@@ -83,5 +83,35 @@ describe LogStash::Filters::Redis do
 
   describe "Handles overlapping sets of events" do
     # Fill me in
+
+    config <<-CONFIG
+    filter {
+      redis {
+        store_tag => "BEGIN"
+	retrieve_tag => "END"
+	key => "logstash-filter-redis-test-%{message}"
+      }
+    }
+    CONFIG
+
+    eventsstore = []
+    eventsretrieve = []
+    5.times do |i|
+     eventsstore << {
+       "message" => i.to_s,
+       "tags"    => ["BEGIN"]
+     }
+     eventsretrieve << {
+       "message" => i.to_s,
+       "tags"    => ["END"]
+     }
+    end
+    eventsretrieve.shuffle!
+    sample(eventsstore + eventsretrieve) do
+      insist {
+        subject[5..9].select { |e| e["old_message"] == e["message"] }
+      } != []
+    end
   end
+
 end

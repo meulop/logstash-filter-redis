@@ -65,16 +65,9 @@ class LogStash::Filters::Redis < LogStash::Filters::Base
     @logger.debug(relevant)
     return unless [] != relevant
  
-    # Do we store data? 
-    if event["tags"].include?(@store_tag)
-      @logger.debug("Found store tag %{store_tag}")
-      val = event.to_hash().select { |name,value| fields.include?(name) }
-      @redis ||= connect
-      @redis.set(key, val.to_json) && @logger.debug("Stored key")
-      @redis.expire(key, @expiry) && @logger.debug("Set expiry key")
-    end
     # Do we retrieve data from a prior event?
-    # N.b. we can do both if we want! (e.g. packet sequence numbers ...)
+    # N.b. we retrieve before we store so that we can do both if we want!
+    # (e.g. packet sequence numbers? ...)
     #
     if event["tags"].include?(@retrieve_tag)
       @logger.debug("Found retrieve tag %{retrieve_tag}")
@@ -88,6 +81,14 @@ class LogStash::Filters::Redis < LogStash::Filters::Base
           @redis.del(key)
         end
       end
+    # Do we store data? 
+    if event["tags"].include?(@store_tag)
+      @logger.debug("Found store tag %{store_tag}")
+      val = event.to_hash().select { |name,value| fields.include?(name) }
+      @redis ||= connect
+      @redis.set(key, val.to_json) && @logger.debug("Stored key")
+      @redis.expire(key, @expiry) && @logger.debug("Set expiry key")
+    end
     end
     # filter_matched should go in the last line of our successful code
     filter_matched(event)
