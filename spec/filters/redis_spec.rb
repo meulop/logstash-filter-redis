@@ -114,4 +114,25 @@ describe LogStash::Filters::Redis do
     end
   end
 
+
+  describe "Deletes after retrieval" do
+    config <<-CONFIG
+      filter {
+        redis {
+	  store_tag      => "BEGIN"
+	  retrieve_tag   => "END"
+	  delete         => true
+	  key            => "logstash-filter-redis-test"
+	}
+      }
+    CONFIG
+    estore = { "message" => "Store", "tags" => ["BEGIN"] }
+    ereceive1 = { "message" => "Receive1", "tags" => ["END"] }
+    ereceive2 = { "message" => "Receive2", "tags" => ["END"] }
+
+    sample([estore,ereceive1,ereceive2]) do
+      insist { subject[1]["old_message"] } == "Store"
+      insist { subject[2]["old_message"] } == nil
+    end
+  end
 end

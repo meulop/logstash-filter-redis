@@ -72,15 +72,19 @@ class LogStash::Filters::Redis < LogStash::Filters::Base
     if event["tags"].include?(@retrieve_tag)
       @logger.debug("Found retrieve tag %{retrieve_tag}")
       @redis ||= connect
-      val = JSON.parse(@redis.get(key))
+      val = @redis.get(key)
       if val != nil
-        val.each do |k,v|
+        @logger.debug("Found key in Redis")
+        JSON.parse(val).each do |k,v|
           event[prefix + k] = v
         end
         if @delete
-          @redis.del(key)
+          @redis.del(key) && @logger.debug("Deleted key")
         end
+      else
+        @logger.debug("Key not found in Redis")
       end
+    end
     # Do we store data? 
     if event["tags"].include?(@store_tag)
       @logger.debug("Found store tag %{store_tag}")
@@ -88,7 +92,6 @@ class LogStash::Filters::Redis < LogStash::Filters::Base
       @redis ||= connect
       @redis.set(key, val.to_json) && @logger.debug("Stored key")
       @redis.expire(key, @expiry) && @logger.debug("Set expiry key")
-    end
     end
     # filter_matched should go in the last line of our successful code
     filter_matched(event)
